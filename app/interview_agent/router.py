@@ -27,6 +27,16 @@ def next_question(session_id: int, db: Session = Depends(get_db), user=Depends(g
     return {"question": agent_state.get_next_question(db, session)}
 
 
+@router.get("/{session_id}/resources")
+def resources(session_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    session = db.query(PracticeSession).filter(
+        PracticeSession.id == session_id, PracticeSession.user_id == user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return agent_state.get_current_topic_resources(session)
+
+
 @router.post("/answer", response_model=ScoredFeedback)
 def answer(payload: AnswerSubmission, db: Session = Depends(get_db), user=Depends(get_current_user)):
     session = db.query(PracticeSession).filter(

@@ -46,3 +46,29 @@ def test_retrieve_relevant_chunks_handles_empty_results(monkeypatch):
     )
     result = retriever.retrieve_relevant_chunks("anything")
     assert result == []
+
+
+def test_retrieve_resources_pairs_chunks_with_source_urls(monkeypatch):
+    monkeypatch.setattr(retriever, "embed_text", lambda texts: [[0.1, 0.2, 0.3]])
+    monkeypatch.setattr(
+        retriever, "query",
+        lambda collection_name, query_embedding, top_k: {
+            "documents": [["chunk a", "chunk b"]],
+            "metadatas": [[{"source_url": "https://a.example"}, {"source_url": "https://b.example"}]],
+        },
+    )
+    result = retriever.retrieve_resources("system design")
+    assert result == [
+        {"excerpt": "chunk a", "source_url": "https://a.example"},
+        {"excerpt": "chunk b", "source_url": "https://b.example"},
+    ]
+
+
+def test_retrieve_resources_handles_empty_results(monkeypatch):
+    monkeypatch.setattr(retriever, "embed_text", lambda texts: [[0.1, 0.2, 0.3]])
+    monkeypatch.setattr(
+        retriever, "query",
+        lambda collection_name, query_embedding, top_k: {"documents": []},
+    )
+    result = retriever.retrieve_resources("anything")
+    assert result == []

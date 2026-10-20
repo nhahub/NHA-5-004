@@ -90,3 +90,44 @@ def test_submit_answer_completes_session_on_last_day(db_session, mock_llm):
 
     assert result["next_action"] == "advance"
     assert session.status == "completed"
+
+
+def test_get_current_topic_resources_returns_rag_results(db_session, monkeypatch):
+    from app.career_rag import retriever
+
+    session = _make_session(db_session)
+    monkeypatch.setattr(
+        retriever, "retrieve_resources",
+        lambda topic, top_k=3: [{"excerpt": "some SQL tips", "source_url": "https://example.com"}],
+    )
+
+    result = agent_state.get_current_topic_resources(session)
+
+    assert result["topic"] == "SQL fundamentals"
+    assert result["resources"] == [{"excerpt": "some SQL tips", "source_url": "https://example.com"}]
+
+
+def test_get_current_topic_resources_empty_when_rag_has_nothing(db_session, monkeypatch):
+    from app.career_rag import retriever
+
+    session = _make_session(db_session)
+    monkeypatch.setattr(retriever, "retrieve_resources", lambda topic, top_k=3: [])
+
+    result = agent_state.get_current_topic_resources(session)
+
+    assert result == {"topic": "SQL fundamentals", "resources": []}
+
+
+def test_get_current_topic_resources_survives_rag_failure(db_session, monkeypatch):
+    from app.career_rag import retriever
+
+    session = _make_session(db_session)
+
+    def _boom(topic, top_k=3):
+        raise RuntimeError("vector store unavailable")
+
+    monkeypatch.setattr(retriever, "retrieve_resources", _boom)
+
+    result = agent_state.get_current_topic_resources(session)
+
+    assert result == {"topic": "SQL fundamentals", "resources": []}

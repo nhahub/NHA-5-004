@@ -32,11 +32,28 @@ def get_next_question(db: Session, session: PracticeSession) -> str:
     return generate_question(day_plan["topic"], day_plan["focus_areas"], session.target_role)
 
 
+def get_current_topic_resources(session: PracticeSession) -> dict:
+    """Optional: suggested real resources for the current day's topic, via RAG.
+    Never blocks the core agent loop — an empty/unavailable RAG just means no
+    suggestions, not a broken session."""
+    from app.career_rag.retriever import retrieve_resources
+
+    plan = json.loads(session.plan_json)
+    day_plan = next(d for d in plan["days"] if d["day_number"] == session.current_day)
+    try:
+        resources = retrieve_resources(day_plan["topic"])
+    except Exception:
+        resources = []
+    return {"topic": day_plan["topic"], "resources": resources}
+
+
 def submit_answer(db: Session, session: PracticeSession, day_number: int, question: str, user_answer: str) -> dict:
     result = score_answer(question, user_answer)
     # Capture recent_scores BEFORE saving this answer, so decide_next_action's
     # (recent_scores + [score]) doesn't double-count the answer being scored now.
-    recent_scores = [a.score for a in session.answers[-3:]]
+    # Only the single most recent prior answer is ever used (nudge.py looks at
+    # just the last BREAK_STREAK_THRESHOLD=2 after appending the current score).
+    recent_scores = [a.score for a in session.answers[-1:]]
     save_answer(db, session.id, day_number, question, user_answer, result["score"], result["feedback"])
 
     next_action = decide_next_action(result["score"], recent_scores)
