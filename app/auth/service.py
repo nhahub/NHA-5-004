@@ -2,7 +2,8 @@
 Password hashing + JWT issue/verify. Pure functions, no FastAPI/DB imports
 beyond what's passed in, so it's easy to unit test.
 """
-from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta, timezone
 
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -22,7 +23,9 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(user_id: int) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.access_token_expire_minutes
+    )
     payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
