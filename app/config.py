@@ -15,8 +15,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str
     llm_model: str = "claude-sonnet-4-6"
 
-    job_api_base_url: str = ""
-    job_api_key: str = ""
+    job_api_base_url: str = "https://api.adzuna.com/v1/api/jobs"
+    job_api_app_id: str = ""
+    job_api_key: str = ""  # Adzuna app_key
 
     vector_db_path: str = "./data/vector_store"
     embedding_model: str = "all-MiniLM-L6-v2"

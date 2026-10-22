@@ -1,14 +1,23 @@
-"""HTTP endpoint for structured job search ONLY (Phase 3 — the fast, no-AI-risk win)."""
-from fastapi import APIRouter, Depends
+"""
+HTTP layer only: parse query params into JobSearchFilters, call the service,
+map errors to HTTP status codes. No business logic here.
+"""
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.common.dependencies import get_current_user
-from app.schemas.job import JobPosting
+from app.common.exceptions import ExternalAPIError
+from app.job_search.filters import JobSearchFilters
 from app.job_search.service import search_jobs
+from app.schemas.job import JobPosting
 
-router = APIRouter()
+router = APIRouter(tags=["job-search"])
 
+# بستقبل الطلب من المستخدم عبر البحث 
 
 @router.get("/search", response_model=list[JobPosting])
-def search(keyword: str, location: str | None = None, remote: bool | None = None,
-           date_posted: str | None = None, user=Depends(get_current_user)):
-    return search_jobs(keyword, location, remote, date_posted)
+#التاكد من صحة اليانات المستخدم باعتها 
+def search(filters: JobSearchFilters = Depends()):
+    try:
+        #لو سليمة بيبعتها ل الدالة دة الموجودة في ال service 
+        return search_jobs(filters)
+    except ExternalAPIError as e:
+        raise HTTPException(status_code=502, detail=str(e))
