@@ -2,15 +2,8 @@
 from app.llm.client import complete
 import requests
 from app.tailoring.prompts import COVER_LETTER_SYSTEM_PROMPT , RESEARCH_COMPANY_SYSTEM_PROMPT,DRAFT_SYSTEM_PROMPT,CRITIQUE_SYSTEM_PROMPT="You are a strict hiring manager and fact-checker. Respond with a JSON object only.",
-
-
-
-def generate_cover_letter(profile_summary: str, job_title: str, company: str, job_description: str) -> str:
-    user_prompt = (
-        f"CANDIDATE SUMMARY:\n{profile_summary}\n\n"
-        f"TARGET ROLE: {job_title} at {company}\n\nJOB POSTING:\n{job_description}"
-    )
-    return complete(COVER_LETTER_SYSTEM_PROMPT, user_prompt)
+import json
+import app.config.settings as settings
 
 
 def _web_search(query: str, n: int = 4) -> list[dict]:
@@ -50,8 +43,7 @@ def research_company(company: str, job_title: str) -> str:
             max_tokens=500,
         ).replace("UNRELIABLE", "")
     except Exception:
-        return ""  # research should never block the application
-
+        return "" 
 
 
 

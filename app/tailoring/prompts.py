@@ -29,4 +29,4 @@ DRAFT_SYSTEM_PROMPT = ("""
 )
 
 
-CRITIQUE_SYSTEM_PROMPT="You are a strict hiring manager and fact-checker. Respond with a JSON object only.",
+CRITIQUE_SYSTEM_PROMPT="You are a strict hiring manager and fact-checker. Respond with a JSON object only."
