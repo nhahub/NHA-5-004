@@ -1,5 +1,5 @@
 """
-Thin wrapper around the Anthropic SDK. EVERY module that calls an LLM
+Thin wrapper around the Groq SDK. EVERY module that calls an LLM
 (cv_extraction, skill_gap, tailoring, career_rag answer synthesis,
 interview_agent) imports `complete()` from here instead of instantiating
 its own client. Keeps model choice, retries, and error handling in one place.
