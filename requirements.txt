@@ -19,7 +19,7 @@ pydantic-settings==2.5.2
 email-validator==2.2.0
 
 # --- LLM ---
-anthropic==0.34.2
+groq==0.11.0
 
 # --- RAG (career resources + optional job semantic search) ---
 chromadb==0.5.5
