@@ -12,8 +12,9 @@ class Settings(BaseSettings):
     database_url: str
     access_token_expire_minutes: int = 60
 
-    anthropic_api_key: str
-    llm_model: str = "claude-sonnet-4-6"
+    groq_api_key: str
+    llm_model: str = "openai/gpt-oss-20b"
+    tavily_api_key: str
 
     job_api_base_url: str = ""
     job_api_key: str = ""
