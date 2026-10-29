@@ -1,120 +1,154 @@
-# Personal Job Search & Application Agent
+# job_search_agent: Personal Job Search & Application Agent
 
-A conversational assistant that supports a job seeker end-to-end: CV → structured
-profile → job search → skill-gap analysis → tailored applications → interview prep →
-organized tracking.
+A backend for helping a job seeker move from raw CV materials to a structured
+personal profile, targeted job search, tailored applications, interview preparation,
+and application tracking. The system is built around a practical architecture:
+plain software for infrastructure, LLM modules for reasoning and writing, and a
+single interview-prep agent for multi-step planning.
 
-## Design principle
+## What this project does
 
-Every feature uses the **simplest technology that actually fits the task** — not the
-flashiest one. Five approaches are mixed deliberately:
+The app supports the full job-search lifecycle:
+
+- CV upload and extraction into a structured profile
+- Job discovery using structured search APIs
+- Skill-gap analysis against job requirements
+- Tailoring of CV bullets and cover letters
+- Career-resource retrieval with RAG
+- Interview preparation planning via a focused agent
+- Application tracking and reminder workflows
+
+## Design principles
+
+The project intentionally keeps each concern in the simplest layer that fits it:
 
 | Approach | Used for | Where |
 |---|---|---|
-| **Normal LLM** | Reasoning/writing on info already at hand | `cv_extraction/`, `skill_gap/`, `tailoring/` |
-| **RAG** | Answers depending on external, changing content | `career_rag/` (Phase 5), `job_rag/` (Phase 7 stretch) |
-| **Agent** | Multi-step planning + runtime branching | `interview_agent/` (the one agent in the system) |
-| **Memory** | Persistent facts about the user | `memory/` |
-| **Normal software** | Plain infra, no AI needed | `auth/`, `job_search/`, `application_tracker/`, `storage/` |
+| Normal LLM | Reasoning and writing on content already available | `app/cv_extraction/`, `app/skill_gap/`, `app/tailoring/` |
+| RAG | Retrieval over changing external knowledge | `app/career_rag/`, `app/job_rag/` |
+| Agent | Multi-step planning and branching runtime logic | `app/interview_agent/` |
+| Memory | Persistent facts about the user | `app/memory/` |
+| Normal software | Auth, database, job search, resume storage, app tracking | `app/auth/`, `app/job_search/`, `app/application_tracker/`, `app/storage/` |
 
-Only **one** agent exists in this system — the interview-prep planner. Everything
-that can be a plain LLM call or plain code deliberately is one, instead of being
-wrapped in agent machinery it doesn't need.
+Only one agent exists in the system: the interview-prep planner. Everything else
+uses plain LLM calls or plain application code unless multi-step branching truly
+requires an agent.
 
 ## Repository structure
 
-```
-job-search-agent/
+```text
+job_search_agent/
 ├── app/
-│   ├── main.py                 # FastAPI app assembly only — mounts routers
-│   ├── config.py                # Single source of settings (env vars)
-│   ├── database.py              # DB engine/session setup only
-│   │
-│   ├── models/                  # SQLAlchemy tables (Phase 1 — the foundation)
-│   ├── schemas/                 # Pydantic request/response contracts (API shape, decoupled from DB)
-│   ├── common/                  # Cross-cutting: exceptions, logging, shared dependencies
-│   │
-│   ├── auth/                    # Normal software — signup/login/JWT
-│   ├── storage/                 # Normal software — raw resume file storage
-│   ├── memory/                  # Memory pillar — assembles persistent user context
-│   ├── llm/                     # Shared LLM client — every "Normal LLM" module uses this
-│   │
-│   ├── cv_extraction/           # Normal LLM — Phase 2: resume file → structured profile
-│   ├── job_search/              # Normal software — Phase 3: structured job API search
-│   ├── skill_gap/               # Normal LLM — Phase 4a: CV vs. posting comparison
-│   ├── tailoring/                # Normal LLM — Phase 4b: resume bullets + cover letters
-│   ├── career_rag/              # RAG — Phase 5: scrape/embed/retrieve study resources
-│   ├── interview_agent/         # Agent — Phase 6: adaptive day-by-day interview prep
-│   ├── application_tracker/     # Normal software — Phase 1/7: CRUD + stale-application nudges
-│   └── job_rag/                 # RAG (stretch) — Phase 7: semantic/loose job search
-│
-├── migrations/                  # Alembic migrations (schema changes over time)
-├── scripts/                     # One-off/batch jobs: seed_db.py, ingest_career_resources.py
-├── tests/                       # One test file per feature module, mirrors app/ 1:1
-├── frontend/                    # Placeholder — point any client at the API (see frontend/README.md)
-│
-├── requirements.txt
-├── .env.example
-├── docker-compose.yml
-├── Dockerfile
-└── alembic.ini
+│   ├── main.py                 # FastAPI app assembly and router mounting
+│   ├── config.py               # Central app configuration
+│   ├── database.py             # Database/session setup
+│   ├── models/                 # SQLAlchemy models
+│   ├── schemas/                # Pydantic request/response contracts
+│   ├── common/                 # Shared exceptions, logging, helpers
+│   ├── auth/                   # Auth and JWT flow
+│   ├── storage/                # Resume file storage
+│   ├── memory/                 # Persistent user context
+│   ├── llm/                    # Shared LLM client
+│   ├── cv_extraction/          # Resume parsing + structured profile extraction
+│   ├── job_search/             # Structured job search integration
+│   ├── skill_gap/              # CV-to-job gap analysis
+│   ├── tailoring/              # Resume tailoring and cover letters
+│   ├── career_rag/             # Career-resource retrieval and embedding flow
+│   ├── interview_agent/        # Interview-prep planning agent
+│   ├── application_tracker/    # Application CRUD and reminders
+│   ├── job_rag/                # Optional semantic job-search stretch work
+│   └── ...
+├── migrations/                 # Alembic migrations
+├── scripts/                    # Seed and ingest utilities
+├── tests/                      # Feature-level tests
+├── frontend/                   # Client placeholder; backend is the source of truth
+├── .env.example                # Required environment variables
+├── alembic.ini                 # Alembic configuration
+├── docker-compose.yml          # Docker Compose setup
+├── Dockerfile                  # Container definition
+├── requirements.txt            # Python dependencies
+├── LICENSE                     # Project license
+├── README.md                   # Project documentation
+└── .gitignore
 ```
 
-### Module rules (why nothing overlaps)
+## Local setup
 
-- Every feature folder has **one router.py** (HTTP only) and **one service.py**
-  (orchestration only). Routers never contain business logic; services never
-  touch `Request`/`Response` objects.
-- **`models/`** = database shape. **`schemas/`** = API shape. They are never the
-  same file, so a schema change doesn't force a migration and vice versa.
-- Anything that calls the LLM imports `complete()` from **`llm/client.py`** —
-  no feature module instantiates its own Anthropic client.
-- Anything that needs persistent facts about the user calls
-  **`memory/memory_store.py`** — no feature module hand-rolls its own multi-table
-  join for "what do we know about this user."
-- `career_rag/` and `job_rag/` both use the shared `vector_store.py` machinery
-  from `career_rag/`, just with different collection names — the Chroma wrapper
-  itself is written once.
-- File parsing (`cv_extraction/parser.py`) is separate from file storage
-  (`storage/resume_storage.py`) is separate from LLM interpretation
-  (`cv_extraction/service.py`) — three distinct concerns, three distinct files.
-
-## Setup
+1. Create a local environment file:
 
 ```bash
-cp .env.example .env          # fill in ANTHROPIC_API_KEY, DATABASE_URL, etc.
-pip install -r requirements.txt
+cp .env.example .env
+```
 
+2. Fill in the values in `.env`, especially:
+
+- `DATABASE_URL`
+- `Groq_API_KEY`
+- `TAVILY_API_KEY`
+- `JOB_API_BASE_URL`
+- `JOB_API_KEY`
+- `SECRET_KEY`
+
+Example values are defined in `.env.example`.
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Start the app locally:
+
+```bash
 # Option A: quick local dev (no migration history)
 python -m scripts.seed_db
 
-# Option B: proper migrations
+# Option B: use Alembic migrations
 alembic revision --autogenerate -m "init"
 alembic upgrade head
 
 uvicorn app.main:app --reload
 ```
 
-Or via Docker:
+The API is available at:
+
+- Swagger UI: `http://localhost:8000/docs`
+- OpenAPI schema: `http://localhost:8000/openapi.json`
+
+## Docker
 
 ```bash
 docker-compose up --build
 ```
 
-API docs are auto-generated at `http://localhost:8000/docs`.
+## Build order and module sequencing
 
-## Build order (matches the phases)
+The project is structured in phases:
 
-1. **Foundations** — `models/`, `auth/`, `storage/`
-2. **Core pipeline** — `cv_extraction/` → `memory/`
-3. **Structured search** — `job_search/`
-4. **Skill-gap + tailoring** — `skill_gap/`, `tailoring/`
-5. **Career-resource RAG** — `career_rag/`
-6. **Interview-prep Agent** — `interview_agent/` (depends on 2, 4, 5)
-7. **Stretch** — `job_rag/`, `application_tracker/reminders.py`, market-insight summaries
+1. Foundations — `app/models/`, `app/auth/`, `app/storage/`
+2. Core pipeline — `app/cv_extraction/` → `app/memory/`
+3. Structured search — `app/job_search/`
+4. Skill-gap and tailoring — `app/skill_gap/`, `app/tailoring/`
+5. Career-resource RAG — `app/career_rag/`
+6. Interview-prep agent — `app/interview_agent/`
+7. Stretch work — `app/job_rag/`, reminders, market insights
 
-## Running tests
+## Module rules
+
+A few project conventions keep the codebase predictable:
+
+- Each feature folder has a `router.py` for HTTP concerns and a `service.py` for orchestration.
+- `models/` are for database structure; `schemas/` are for API contracts.
+- LLM code imports the shared client from `app/llm/` instead of creating separate provider clients.
+- User memory is centralized in `app/memory/` instead of re-implemented per feature.
+- CV parsing, file storage, and LLM interpretation remain separate concerns.
+
+## Testing
 
 ```bash
 pytest tests/ -v
 ```
+
+## Notes
+
+This repository is a backend-first scaffold intended to be connected to a client UI or CLI. The frontend folder is intentionally minimal and acts as a placeholder for user-facing tooling. The main runtime contract is the FastAPI backend in `app/`.
